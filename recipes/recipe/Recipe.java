@@ -1,64 +1,41 @@
 package recipes.recipe;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.Data;
 
+import javax.persistence.*;
+import javax.validation.constraints.NotBlank;
+import javax.validation.constraints.NotNull;
+import javax.validation.constraints.Size;
 import java.util.List;
-
+@Entity
+@Data
 public class Recipe {
+
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
-    private long id = 1;
+    @Id
+    @GeneratedValue(strategy = GenerationType.SEQUENCE)
+    private long id;
+    @NotBlank
+   // @JsonProperty(required = true)
     private String name;
+    @NotBlank
+   // @JsonProperty(required = true)
     private String description;
+    @ElementCollection
+    @Size(min = 1)
+    @NotNull
     private List<String> ingredients;
+    @ElementCollection
+    @Size(min = 1)
+    @NotNull
     private List<String> directions;
-    private static long counter = 0;
     public Recipe() {}
     public Recipe(String name, String description, List<String> ingredients, List<String> directions) {
-        counter++;
-        this.id = counter;
+
         this.name = name;
         this.description = description;
         this.ingredients = ingredients;
-        this.directions = directions;
-    }
-
-    public long getId() {
-        return id;
-    }
-
-    public void setId(long id) {
-        this.id = id;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
-    }
-
-    public List<String> getIngredients() {
-        return ingredients;
-    }
-
-    public void setIngredients(List<String> ingredients) {
-        this.ingredients = ingredients;
-    }
-
-    public List<String> getDirections() {
-        return directions;
-    }
-
-    public void setDirections(List<String> directions) {
         this.directions = directions;
     }
 }
