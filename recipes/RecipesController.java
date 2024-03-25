@@ -4,84 +4,66 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import recipes.recipe.Recipe;
 import recipes.recipe.RecipeRepo;
+import recipes.recipe.RecipeService;
 
 import javax.validation.Valid;
 import java.time.LocalDateTime;
 import java.util.*;
-
-@RequiredArgsConstructor
 @RestController
+@Validated
+@RequestMapping(value = "api/recipe/")
 public class RecipesController {
 
-    private final RecipeRepo recipeRepo;
-    Recipe recipe;
+    private final RecipeService recipeService;
 
-    @PostMapping("/api/recipe/new")
-    public ResponseEntity<?> giveRecipe(@Valid @RequestBody Recipe recipeArg) {
-
-        recipe = new Recipe(recipeArg.getName(), recipeArg.getDescription(),
-                recipeArg.getIngredients(), recipeArg.getDirections(),
-                recipeArg.getCategory());
-        recipeRepo.save(recipe);
-
-        HashMap<String, Long> map = new HashMap<>();
-        map.put("id", recipe.getId());
-        return new ResponseEntity<>(map, HttpStatus.OK);
+    public RecipesController(RecipeService recipeService) {
+        this.recipeService = recipeService;
     }
 
-    @GetMapping("/api/recipe/{id}")
-    public ResponseEntity<?> getRecipe(@PathVariable long id) {
-        Optional<Recipe> recipeFromDB = recipeRepo.findById(id);
-        if (recipeFromDB.isPresent()) {
-            return new ResponseEntity<>(recipeFromDB, HttpStatus.OK);
-        } else {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-        }
+    @PostMapping("new")
+    public Map<String, Long> addRecipe(@Valid @RequestBody Recipe recipe) {
+        return Map.of("id", recipeService.add(recipe));
     }
 
-    @DeleteMapping("/api/recipe/{id}")
-    public ResponseEntity<?> deleteRecipe(@PathVariable long id) {
-        if (!recipeRepo.existsById(id)) {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-        }
-        recipeRepo.deleteById(id);
-        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+    @GetMapping("{id}")
+    public ResponseEntity<Recipe> getRecipe(@PathVariable long id) {
+        Optional<Recipe> recipe = recipeService.findById(id);
+        return ResponseEntity.of(recipe);
     }
 
-    @PutMapping("/api/recipe/{id}")
-    public ResponseEntity<?> updateById(@PathVariable long id,
-                                        @Valid @RequestBody Recipe recipeArg) {
-        if (!recipeRepo.existsById(id)) {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-        }
-        Recipe recipe1 = recipeRepo.findById(id).get();
-        recipe1.setName(recipeArg.getName());
-        recipe1.setCategory(recipeArg.getCategory());
-        recipe1.setDate(LocalDateTime.now());
-        recipe1.setDescription(recipeArg.getDescription());
-        recipe1.setIngredients(recipeArg.getIngredients());
-        recipe1.setDirections(recipeArg.getDirections());
-        recipeRepo.save(recipe1);
-        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+    @DeleteMapping("{id}")
+    public ResponseEntity deleteRecipe(@PathVariable long id) {
+        boolean status = recipeService.deleteById(id);
+        return status ?
+                ResponseEntity.status(204).build() :
+                ResponseEntity.status(404).build();
     }
 
-    @GetMapping("/api/recipe/search")
+    @PutMapping("{id}")
+    public ResponseEntity updateRecipe(@PathVariable long id,
+                                       @Valid @RequestBody Recipe recipe) {
+        boolean status = recipeService.updateById(id, recipe);
+        return status ?
+                ResponseEntity.status(204).build() :
+                ResponseEntity.status(404).build();
+    }
+
+    @GetMapping("search")
     public ResponseEntity<?> searchByCategoryOrByName(@RequestParam Map<String, String> requestParam) {
         if (requestParam.size() != 1) {
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         } else if (requestParam.containsKey("category")) {
-            Iterable<Recipe> specificRecipes = recipeRepo.findAllByCategory(
-                    requestParam.get("category").toLowerCase(Locale.ENGLISH),
-                    Sort.by("date").descending()
+            Iterable<Recipe> specificRecipes = recipeService.findByCategory(
+                    requestParam.get("category").toLowerCase(Locale.ENGLISH)
             );
             return new ResponseEntity<>(specificRecipes, HttpStatus.OK);
         } else if (requestParam.containsKey("name")) {
-            Iterable<Recipe> specificRecipes = recipeRepo.findAllByNameContainsIgnoreCase(
-                    requestParam.get("name").toLowerCase(Locale.ENGLISH),
-                    Sort.by("date").descending()
+            Iterable<Recipe> specificRecipes = recipeService.findByName(
+                    requestParam.get("name").toLowerCase(Locale.ENGLISH)
             );
             return new ResponseEntity<>(specificRecipes, HttpStatus.OK);
         }

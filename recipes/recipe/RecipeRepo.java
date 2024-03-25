@@ -6,8 +6,10 @@ import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.PagingAndSortingRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
+
 @Repository
 public interface RecipeRepo extends CrudRepository<Recipe, Long>, PagingAndSortingRepository<Recipe, Long> {
-    Iterable<Recipe> findAllByCategory(String category, Sort sort);
-    Iterable<Recipe> findAllByNameContainsIgnoreCase(String name, Sort sort);
+    List<Recipe> findAllByCategoryIgnoreCaseOrderByDateDesc(String category);
+    List<Recipe> findAllByNameContainsIgnoreCaseOrderByDateDesc(String name);
 }
