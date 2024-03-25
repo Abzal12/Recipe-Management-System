@@ -7,6 +7,7 @@ import javax.persistence.*;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
+import java.time.LocalDateTime;
 import java.util.List;
 @Entity
 @Data
@@ -16,26 +17,39 @@ public class Recipe {
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE)
     private long id;
+
     @NotBlank
-   // @JsonProperty(required = true)
     private String name;
+
     @NotBlank
-   // @JsonProperty(required = true)
+    private String category;
+
+    private LocalDateTime date;
+
+    @NotBlank
     private String description;
+
     @ElementCollection
     @Size(min = 1)
     @NotNull
     private List<String> ingredients;
+
     @ElementCollection
     @Size(min = 1)
     @NotNull
     private List<String> directions;
     public Recipe() {}
-    public Recipe(String name, String description, List<String> ingredients, List<String> directions) {
+    public Recipe(String name,
+                  String description,
+                  List<String> ingredients,
+                  List<String> directions,
+                  String category) {
 
         this.name = name;
         this.description = description;
+        this.date = LocalDateTime.now();
         this.ingredients = ingredients;
         this.directions = directions;
+        this.category = category;
     }
 }
