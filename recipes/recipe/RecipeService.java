@@ -1,5 +1,7 @@
 package recipes.recipe;
 
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
 import java.util.List;

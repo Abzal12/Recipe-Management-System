@@ -1,58 +1,97 @@
 package recipes;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Sort;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.ComponentScan;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.validation.annotation.Validated;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 import recipes.recipe.Recipe;
 import recipes.recipe.RecipeRepo;
 import recipes.recipe.RecipeService;
+import recipes.user.User;
+import recipes.user.UserRepo;
 
 import javax.validation.Valid;
-import java.time.LocalDateTime;
-import java.util.*;
+import java.security.Principal;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
+
+@RequiredArgsConstructor
 @RestController
-@Validated
-@RequestMapping(value = "api/recipe/")
+@ComponentScan
+@RequestMapping(value = "api/")
 public class RecipesController {
 
+    @Autowired
     private final RecipeService recipeService;
+    private final UserRepo userRepo;
+    private final RecipeRepo recipeRepo;
+    private final PasswordEncoder passwordEncoder;
 
-    public RecipesController(RecipeService recipeService) {
-        this.recipeService = recipeService;
+    @PostMapping("recipe/new")
+    public ResponseEntity<?> addRecipe(@Valid @RequestBody Recipe recipe,
+                                       @AuthenticationPrincipal UserDetails userDetails) {
+
+        if (userDetails == null) {
+            return ResponseEntity.status(403).build();
+        }
+        recipe.setUser(userRepo.findUserByEmail(userDetails.getUsername()).get());
+        Recipe recipeOption = recipeRepo.save(recipe);
+        return new ResponseEntity<>(Map.of("id", recipeOption.getId()), HttpStatus.OK);
     }
 
-    @PostMapping("new")
-    public Map<String, Long> addRecipe(@Valid @RequestBody Recipe recipe) {
-        return Map.of("id", recipeService.add(recipe));
-    }
-
-    @GetMapping("{id}")
+    @GetMapping("recipe/{id}")
     public ResponseEntity<Recipe> getRecipe(@PathVariable long id) {
         Optional<Recipe> recipe = recipeService.findById(id);
         return ResponseEntity.of(recipe);
     }
 
-    @DeleteMapping("{id}")
-    public ResponseEntity deleteRecipe(@PathVariable long id) {
-        boolean status = recipeService.deleteById(id);
-        return status ?
-                ResponseEntity.status(204).build() :
-                ResponseEntity.status(404).build();
+    @DeleteMapping("recipe/{id}")
+    public ResponseEntity<?> deleteRecipe(@AuthenticationPrincipal UserDetails userDetails, @PathVariable Long id) {
+
+
+        Optional<Recipe> recipeObj = recipeRepo.findById(id);
+
+        if (recipeObj.isEmpty()) {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        } else if (recipeObj.get().getUser().getEmail().equals(userDetails.getUsername())) {
+            recipeRepo.deleteById(id);
+            return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+        } else if (!recipeObj.get().getUser().getEmail().equals(userDetails.getUsername())) {
+            return new ResponseEntity<>(HttpStatus.FORBIDDEN);
+        }
+        return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
     }
 
-    @PutMapping("{id}")
+    @PutMapping("recipe/{id}")
     public ResponseEntity updateRecipe(@PathVariable long id,
-                                       @Valid @RequestBody Recipe recipe) {
-        boolean status = recipeService.updateById(id, recipe);
-        return status ?
-                ResponseEntity.status(204).build() :
-                ResponseEntity.status(404).build();
-    }
+                                       @Valid @RequestBody Recipe recipe,
+                                       @AuthenticationPrincipal UserDetails userDetails) {
 
-    @GetMapping("search")
+        Optional<Recipe> recipeObj = recipeRepo.findById(id);
+
+        if (recipeObj.isEmpty()) {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        } else if (recipeObj.get().getUser().getEmail().equals(userDetails.getUsername())) {
+
+                Recipe oldRecipe = recipeObj.get();
+                oldRecipe.copyOf(recipe);
+                recipeRepo.save(oldRecipe);
+            return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+        } else if (!recipeObj.get().getUser().getEmail().equals(userDetails.getUsername())) {
+            return new ResponseEntity<>(HttpStatus.FORBIDDEN);
+        }
+        return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+
+    }
+//
+    @GetMapping("recipe/search")
     public ResponseEntity<?> searchByCategoryOrByName(@RequestParam Map<String, String> requestParam) {
         if (requestParam.size() != 1) {
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
@@ -68,5 +107,16 @@ public class RecipesController {
             return new ResponseEntity<>(specificRecipes, HttpStatus.OK);
         }
         return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+    }
+
+    @PostMapping("register")
+    public ResponseEntity<?> registration(@RequestBody @Valid User user) {
+
+        if (userRepo.existsUserByEmail(user.getEmail())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+        }
+        user.setPassword(passwordEncoder.encode(user.getPassword()));
+        userRepo.save(user);
+        return new ResponseEntity<>(HttpStatus.OK);
     }
 }
